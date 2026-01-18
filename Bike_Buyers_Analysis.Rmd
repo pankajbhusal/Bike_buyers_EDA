@@ -1,0 +1,271 @@
+---
+title: "Bike Buyers EDA"
+author: "Pankaj Bhusal 3081563"
+date: "2025-03-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(mice)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+
+## 1.1 Load the Dataset
+
+```{r}
+# Read the CSV file  and na. strings helps to find empty strings as NA during import
+bike_buyers = read.csv("bike_buyers.csv", header=TRUE, na.strings='')
+
+#Display first few columns of datasets 
+head(bike_buyers)
+
+
+#see the structure of the datasets
+str(bike_buyers)
+
+
+```
+
+## 1.2 Data Cleaning
+
+
+```{r}
+# Check the class of the dataset
+class(bike_buyers)
+
+# Check for missing values
+any(is.na(bike_buyers))
+
+# Count the number of missing (NA) values in each column of the data frame
+sapply(bike_buyers, function(x) sum(is.na(x)))
+
+```
+
+```{r}
+### Converting these categorical columns to factors.
+bike_buyers$Marital.Status <- as.factor(bike_buyers$Marital.Status)
+bike_buyers$Gender <- as.factor(bike_buyers$Gender)
+bike_buyers$Home.Owner <- as.factor(bike_buyers$Home.Owner)
+bike_buyers$Purchased.Bike <- as.factor(bike_buyers$Purchased.Bike)
+
+### Check the structure after conversion
+str(bike_buyers)
+
+```
+
+## Reexamine the data after cleaning
+
+```{r}
+
+summary(bike_buyers)
+
+
+```
+
+## 1.3 Fill missing categorical values with the most frequent value (mode)
+
+```{r}
+fill_mode <- function(x) {
+  if (is.factor(x) || is.character(x)) {
+    x[is.na(x)] <- as.character(names(sort(table(x), decreasing = TRUE))[1])  
+  }
+  return(x)
+}
+
+# Convert factors variables to characters as it allows for easier manipulation when filling Missing values.
+bike_buyers$Marital.Status <- as.character(bike_buyers$Marital.Status)
+bike_buyers$Gender <- as.character(bike_buyers$Gender)
+bike_buyers$Home.Owner <- as.character(bike_buyers$Home.Owner)
+
+# Fill missing values with mode( it replaces NA values with most Mode value in each column)
+bike_buyers$Marital.Status <- fill_mode(bike_buyers$Marital.Status)
+bike_buyers$Gender <- fill_mode(bike_buyers$Gender)
+bike_buyers$Home.Owner <- fill_mode(bike_buyers$Home.Owner)
+
+```
+
+## 1.4 Filling missing numerical values with the median
+
+```{r}
+fill_median <- function(x) {
+  x[is.na(x)] <- median(x, na.rm = TRUE)
+  return(x)
+}
+
+bike_buyers$Income <- fill_median(bike_buyers$Income)
+bike_buyers$Children <- fill_median(bike_buyers$Children)
+bike_buyers$Cars <- fill_median(bike_buyers$Cars)
+bike_buyers$Age <- fill_median(bike_buyers$Age)
+
+```
+## 1.5 Check and count missing values again  per column
+```{r}
+any(is.na(bike_buyers))
+
+sapply(bike_buyers, function(x) sum(is.na(x)))
+
+```
+
+# **2.1 Summary Statistics**
+The summary(bike_buyers) command provides a quick numerical and categorical summary of the dataset. For numerical variables (such as Age or Annual Income), it shows metrics like minimum, median, and maximum values. For categorical variables (such as Gender and Marital Status), it displays frequency counts
+
+```{r}
+summary(bike_buyers)
+
+
+```
+
+## 2.2  Pie Chart: Gender Distribution
+The pie chart (of gender) illustrates the relative proportions of genders, making it easy to see which group is more prevalent.
+
+```{r}
+ggplot(bike_buyers, aes(x = "", fill = Gender)) +
+  geom_bar( width = 1) +
+  coord_polar(theta = "y") +
+  labs(title = "Gender Distribution", fill = "Gender") +
+  theme_void()
+```
+
+## 2.3 Bar Chart: Count of Marital Status
+
+```{r}
+ggplot(bike_buyers, aes(x = Marital.Status)) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Bar Chart of Marital Status", x = "Marital Status", y = "Count") +
+  theme_minimal()
+
+```
+
+## 2.4 Histogram: Income Distribution
+```{r}
+
+ggplot(bike_buyers, aes(x = Income)) +
+  geom_histogram(binwidth = 5000, fill = "lightgreen", color = "black") +
+  labs(title = "Histogram of Income", x = "Income", y = "Frequency") +
+  theme_minimal()
+```
+
+## 2.5 Scatter Plot: Age vs. Income
+```{r}
+ggplot(bike_buyers, aes(x = Age, y = Income, color = Purchased.Bike)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Age vs Income by Bike Purchase", 
+       x = "Age", 
+       y = "Income", 
+       color = "Purchased Bike") +
+  theme_minimal()
+```
+
+# 3. **Focus on Purchased.Bike Analysis**
+## 3.1 Histogram of the Income variable
+
+The histogram provides a visual idea of how income values are spread. 
+
+
+```{r}
+# Plot a histogram of the Income variable
+ggplot(bike_buyers, aes(x = Income)) +
+  geom_histogram(binwidth = 5000, fill = "lightblue", color = "black") +
+  labs(title = "Histogram of Income", x = "Income", y = "Frequency") +
+  theme_minimal()
+
+# Calculate summary statistics for Income
+income_mean <- mean(bike_buyers$Income, na.rm = TRUE)
+income_median <- median(bike_buyers$Income, na.rm = TRUE)
+income_variance <- var(bike_buyers$Income, na.rm = TRUE)
+
+#prints ( strings and number) using cat() function
+
+cat("Summary Statistics for Income:\n")
+cat("Mean: ", income_mean, "\n")
+cat("Median: ", income_median, "\n")
+cat("Variance: ", income_variance, "\n")
+
+```
+
+## 3.2 Grouping Bikers by Income Ranges
+```{r}
+# Create income groups using cut()
+bike_buyers$Income.Range <- cut(bike_buyers$Income,
+                                breaks = c(0, 30000, 60000, 90000, 120000, Inf),
+                                labels = c("Low", "Medium", "High", "Very High", "Very Very High"),
+                                right = FALSE)
+
+# Create a contingency table of Income.Range by Purchased.Bike
+income_group_summary <- table(bike_buyers$Income.Range, bike_buyers$Purchased.Bike)
+
+# Add row and column totals to the table
+income_group_summary_totals <- addmargins(income_group_summary)
+
+# Display the table
+print("Income Group Summary by Purchased.Bike (including totals):")
+print(income_group_summary_totals)
+
+
+```
+
+
+## 3.3 Outlier Exploration for Income with a Boxplot
+```{r}
+# Boxplot to detect outliers in Income
+ggplot(bike_buyers, aes(y = Income)) +
+  geom_boxplot(fill = "lightgreen", color = "black") +
+  labs(title = "Boxplot of Income", y = "Income") +
+  theme_minimal()
+```
+
+## 3.4 Correlation Analysis with Purchased.Bike
+From the table below, we can see the following observations:-
+
+- Income has a positive correlation with Purchase.Bike that means higer income user has more chances to buy a bike (i.e  0.0474829 )
+
+- cars has a moderate negative correlation( i.e -0.19877383 )
+
+- Children has a negative correlation that means more children tends to less likely to buy a bike.( i.e -0.1213416 )
+
+- Age has a weaK Negative Correlation means older people slightly less likely to buy( i.e -0.1064722 )
+
+
+```{r}
+# Convert Purchased.Bike to numeric: 1 for "Yes", 0 for "No" for correlation analysis.
+bike_buyers$Purchased.Bike.Num <- ifelse(bike_buyers$Purchased.Bike == "Yes", 1, 0)
+
+# Select numeric variables for correlation analysis
+library(dplyr)
+numeric_vars <- bike_buyers %>% 
+  select(Income, Age, Children, Cars, Purchased.Bike.Num)
+
+# Compute the correlation matrix for the selected numeric variables
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+print("Correlation Matrix:")
+print(cor_matrix)
+
+```
+## **4. Create density plots for Income and ggplot comparing Age and Gender.**
+
+## 4.1 Density Plot for Income
+This plot visualizes the distribution of the Income variable using a density plot with a light blue fill.
+
+```{r}
+ggplot(bike_buyers, aes(x = Income)) +
+  geom_density(fill = "blue", alpha = 0.5) +
+  labs(title = "Density Plot for Income", x = "Income", y = "Density") +
+  theme_minimal()
+
+
+```
+## 4.2 Density Plot Comparing Age by Gender
+This plot overlays the age density curves for each gender. 
+
+```{r}
+ggplot(bike_buyers, aes(x = Age, fill = Gender)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Density Plot of Age by Gender", x = "Age", y = "Density") + theme_minimal()
+```

@@ -1,0 +1,15 @@
+# R specific
+.Rhistory
+.RData
+.Rproj.user/
+
+# LaTeX / PDF build files
+*.aux
+*.log
+*.out
+*.toc
+*.tex
+
+# Cache
+*_cache/
+*_files/
